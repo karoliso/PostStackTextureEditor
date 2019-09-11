@@ -1,4 +1,4 @@
-# PostProcessTextureBaker
+# PostStackTextureEditor
 
 A collection of Unity editor scripts for manipulating textures.
 
