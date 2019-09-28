@@ -7,7 +7,9 @@ using UnityEngine.Rendering.PostProcessing;
 public class PostProcessTextureBaker : EditorWindow
 {
     private Texture2D targetTexture;
+    private string targetTextureFolder;
     private PostProcessProfile postProcessProfile;
+    private TextureSelectionMode textureSelectionMode;
 
     RenderTexture processingRenderTexture;
     Camera renderCamera;
@@ -17,6 +19,13 @@ public class PostProcessTextureBaker : EditorWindow
     Material targetMaterial;
     Texture2D finalTexture;
 
+    enum TextureSelectionMode
+    {
+        Texture2D,
+        // Folder,
+        // VisibleInCamera
+    };
+
     [MenuItem("Window/Rendering/Post Stack Texture Editor")]
     public static void ShowWindow()
     {
@@ -25,7 +34,18 @@ public class PostProcessTextureBaker : EditorWindow
 
     void OnGUI()
     {
-        targetTexture = (Texture2D)EditorGUILayout.ObjectField("Target Texture", targetTexture, typeof(Texture2D), false);
+        textureSelectionMode = (TextureSelectionMode)EditorGUILayout.EnumPopup("Texture Selection Mode", textureSelectionMode);
+        
+
+        if (textureSelectionMode == TextureSelectionMode.Texture2D)
+        {
+            targetTexture = (Texture2D)EditorGUILayout.ObjectField("Target Texture", targetTexture, typeof(Texture2D), false);
+        }
+        // else if (textureSelectionMode == TextureSelectionMode.Folder)
+        // {
+            // targetTextureFolder = EditorGUILayout.TextField("Target Texture Folder", targetTextureFolder);
+        // }
+
         postProcessProfile = (PostProcessProfile)EditorGUILayout.ObjectField("Post Process Profile", postProcessProfile, typeof(PostProcessProfile), false);
 
         if (GUILayout.Button("Export Modified Texture(s)"))
