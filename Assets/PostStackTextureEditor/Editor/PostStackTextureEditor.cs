@@ -6,8 +6,8 @@ using UnityEngine.Rendering.PostProcessing;
 
 public class PostProcessTextureBaker : EditorWindow
 {
-    private Texture2D targetTexture;
-    private string targetTextureFolder;
+    public Texture2D[] targetTextures;
+    public string targetTextureFolder;
     private PostProcessProfile postProcessProfile;
     private TextureSelectionMode textureSelectionMode;
 
@@ -18,6 +18,9 @@ public class PostProcessTextureBaker : EditorWindow
     GameObject textureMesh;
     Material targetMaterial;
     Texture2D finalTexture;
+
+    private SerializedObject so;
+    private SerializedProperty stringsProp;
 
     enum TextureSelectionMode
     {
@@ -32,19 +35,27 @@ public class PostProcessTextureBaker : EditorWindow
         GetWindow<PostProcessTextureBaker>(false, "Post Stack Texture Editor", true);
     }
 
+    private void OnEnable()
+    {
+        so = new SerializedObject(this);
+        stringsProp = so.FindProperty("targetTextures");
+    }
+
     void OnGUI()
     {
         textureSelectionMode = (TextureSelectionMode)EditorGUILayout.EnumPopup("Texture Selection Mode", textureSelectionMode);
-        
 
         if (textureSelectionMode == TextureSelectionMode.Texture2D)
         {
-            targetTexture = (Texture2D)EditorGUILayout.ObjectField("Target Texture", targetTexture, typeof(Texture2D), false);
+            EditorGUILayout.PropertyField(stringsProp, true);
+            so.ApplyModifiedProperties();
         }
-        // else if (textureSelectionMode == TextureSelectionMode.Folder)
-        // {
-            // targetTextureFolder = EditorGUILayout.TextField("Target Texture Folder", targetTextureFolder);
-        // }
+        //else if (textureSelectionMode == TextureSelectionMode.Folder)
+        //{
+        //    EditorGUILayout.PropertyField(stringsProp, true);
+        //    so.ApplyModifiedProperties();
+        //    targetTextureFolder = EditorGUILayout.TextField("Target Texture Folder", targetTextureFolder);
+        //}
 
         postProcessProfile = (PostProcessProfile)EditorGUILayout.ObjectField("Post Process Profile", postProcessProfile, typeof(PostProcessProfile), false);
 
@@ -56,9 +67,9 @@ public class PostProcessTextureBaker : EditorWindow
 
     void BakeTexture()
     {
-        if (!targetTexture)
+        if (targetTextures.Length <= 0)
         {
-            Debug.Log("PostStackTextureEditor: targetTexture is missing");
+            Debug.Log("PostStackTextureEditor: no targetTextures");
             return;
         }
 
@@ -68,49 +79,57 @@ public class PostProcessTextureBaker : EditorWindow
             return;
         }
 
-        processingRenderTexture = new RenderTexture(targetTexture.width, targetTexture.height, 0);
-        RenderTexture.active = processingRenderTexture;
+        for (int i = 0; i < targetTextures.Length; i++)
+        {
+            if (!targetTextures[i])
+            {
+                continue;
+            }
 
-        renderCamera = new GameObject().AddComponent<Camera>();
-        renderCamera.orthographic = true;
-        renderCamera.orthographicSize = targetTexture.height * 0.5f;
-        renderCamera.targetTexture = processingRenderTexture;
-        renderCamera.cullingMask = 4;
+            processingRenderTexture = new RenderTexture(targetTextures[i].width, targetTextures[i].height, 0);
+            RenderTexture.active = processingRenderTexture;
 
-        targetPPVolume = renderCamera.gameObject.AddComponent<PostProcessVolume>();
-        targetPPVolume.isGlobal = true;
-        targetPPVolume.profile = postProcessProfile;
-        targetPPLayer = renderCamera.gameObject.AddComponent<PostProcessLayer>();
-        targetPPLayer.volumeLayer = 1;
-        
-        textureMesh = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        textureMesh.transform.position = renderCamera.transform.position + renderCamera.transform.forward * 50;
-        textureMesh.transform.localScale = new Vector3(targetTexture.width, targetTexture.height, 1);
-        textureMesh.layer = 2;
+            renderCamera = new GameObject().AddComponent<Camera>();
+            renderCamera.orthographic = true;
+            renderCamera.orthographicSize = targetTextures[i].height * 0.5f;
+            renderCamera.targetTexture = processingRenderTexture;
+            renderCamera.cullingMask = 4;
 
-        targetMaterial = new Material(Shader.Find("Unlit/Texture"));
-        textureMesh.GetComponent<MeshRenderer>().sharedMaterial = targetMaterial;
-        textureMesh.GetComponent<MeshRenderer>().sharedMaterial.SetTexture("_MainTex", targetTexture);
+            targetPPVolume = renderCamera.gameObject.AddComponent<PostProcessVolume>();
+            targetPPVolume.isGlobal = true;
+            targetPPVolume.profile = postProcessProfile;
+            targetPPLayer = renderCamera.gameObject.AddComponent<PostProcessLayer>();
+            targetPPLayer.volumeLayer = 1;
 
-        renderCamera.Render();
+            textureMesh = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            textureMesh.transform.position = renderCamera.transform.position + renderCamera.transform.forward * 50;
+            textureMesh.transform.localScale = new Vector3(targetTextures[i].width, targetTextures[i].height, 1);
+            textureMesh.layer = 2;
 
-        finalTexture = new Texture2D(targetTexture.width, targetTexture.height);
-        finalTexture.ReadPixels(new Rect(0, 0, targetTexture.width, targetTexture.height), 0, 0);
+            targetMaterial = new Material(Shader.Find("Unlit/Texture"));
+            textureMesh.GetComponent<MeshRenderer>().sharedMaterial = targetMaterial;
+            textureMesh.GetComponent<MeshRenderer>().sharedMaterial.SetTexture("_MainTex", targetTextures[i]);
 
-        byte[] bytes = finalTexture.EncodeToPNG();
-        File.WriteAllBytes(Application.dataPath + "/" + targetTexture.name + ".png", bytes);
+            renderCamera.Render();
+
+            finalTexture = new Texture2D(targetTextures[i].width, targetTextures[i].height);
+            finalTexture.ReadPixels(new Rect(0, 0, targetTextures[i].width, targetTextures[i].height), 0, 0);
+
+            byte[] bytes = finalTexture.EncodeToPNG();
+            File.WriteAllBytes(Application.dataPath + "/" + targetTextures[i].name + ".png", bytes);
+
+            RenderTexture.active = null;
+            renderCamera.targetTexture = null;
+
+            DestroyImmediate(processingRenderTexture);
+            DestroyImmediate(targetPPLayer);
+            DestroyImmediate(targetPPVolume);
+            DestroyImmediate(renderCamera.gameObject);
+            DestroyImmediate(targetMaterial);
+            DestroyImmediate(textureMesh);
+        }
 
         AssetDatabase.Refresh();
-
-        RenderTexture.active = null;
-        renderCamera.targetTexture = null;
-
-        DestroyImmediate(processingRenderTexture);
-        DestroyImmediate(targetPPLayer);
-        DestroyImmediate(targetPPVolume);
-        DestroyImmediate(renderCamera.gameObject);
-        DestroyImmediate(targetMaterial);
-        DestroyImmediate(textureMesh);
 
         Debug.Log("PostStackTextureEditor: Texture Exported!");
     }
