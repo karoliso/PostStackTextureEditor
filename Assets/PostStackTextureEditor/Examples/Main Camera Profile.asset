@@ -67,7 +67,7 @@ MonoBehaviour:
     value: 1
   temperature:
     overrideState: 1
-    value: 39
+    value: 44
   tint:
     overrideState: 0
     value: 0
@@ -118,7 +118,7 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 1
-    value: {x: 0.9138151, y: 0.93536127, z: 1, w: -0.052980132}
+    value: {x: 0.9138151, y: 0.93536127, z: 1, w: -0.13245033}
   gamma:
     overrideState: 1
     value: {x: 1, y: 1, z: 1, w: 0.105960265}
