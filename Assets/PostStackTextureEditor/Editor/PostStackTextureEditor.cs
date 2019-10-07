@@ -79,6 +79,22 @@ public class PostProcessTextureBaker : EditorWindow
             return;
         }
 
+        renderCamera = new GameObject().AddComponent<Camera>();
+        renderCamera.orthographic = true;
+        renderCamera.cullingMask = 4;
+
+        targetPPVolume = renderCamera.gameObject.AddComponent<PostProcessVolume>();
+        targetPPVolume.isGlobal = true;
+        targetPPVolume.profile = postProcessProfile;
+        targetPPLayer = renderCamera.gameObject.AddComponent<PostProcessLayer>();
+        targetPPLayer.volumeLayer = 1;
+
+        textureMesh = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        textureMesh.layer = 2;
+
+        targetMaterial = new Material(Shader.Find("Unlit/Texture"));
+        textureMesh.GetComponent<MeshRenderer>().sharedMaterial = targetMaterial;
+
         for (int i = 0; i < targetTextures.Length; i++)
         {
             if (!targetTextures[i])
@@ -89,25 +105,12 @@ public class PostProcessTextureBaker : EditorWindow
             processingRenderTexture = new RenderTexture(targetTextures[i].width, targetTextures[i].height, 0);
             RenderTexture.active = processingRenderTexture;
 
-            renderCamera = new GameObject().AddComponent<Camera>();
-            renderCamera.orthographic = true;
             renderCamera.orthographicSize = targetTextures[i].height * 0.5f;
             renderCamera.targetTexture = processingRenderTexture;
-            renderCamera.cullingMask = 4;
 
-            targetPPVolume = renderCamera.gameObject.AddComponent<PostProcessVolume>();
-            targetPPVolume.isGlobal = true;
-            targetPPVolume.profile = postProcessProfile;
-            targetPPLayer = renderCamera.gameObject.AddComponent<PostProcessLayer>();
-            targetPPLayer.volumeLayer = 1;
-
-            textureMesh = GameObject.CreatePrimitive(PrimitiveType.Quad);
             textureMesh.transform.position = renderCamera.transform.position + renderCamera.transform.forward * 50;
             textureMesh.transform.localScale = new Vector3(targetTextures[i].width, targetTextures[i].height, 1);
-            textureMesh.layer = 2;
-
-            targetMaterial = new Material(Shader.Find("Unlit/Texture"));
-            textureMesh.GetComponent<MeshRenderer>().sharedMaterial = targetMaterial;
+            
             textureMesh.GetComponent<MeshRenderer>().sharedMaterial.SetTexture("_MainTex", targetTextures[i]);
 
             renderCamera.Render();
@@ -117,17 +120,17 @@ public class PostProcessTextureBaker : EditorWindow
 
             byte[] bytes = finalTexture.EncodeToPNG();
             File.WriteAllBytes(Application.dataPath + "/" + targetTextures[i].name + ".png", bytes);
-
-            RenderTexture.active = null;
-            renderCamera.targetTexture = null;
-
-            DestroyImmediate(processingRenderTexture);
-            DestroyImmediate(targetPPLayer);
-            DestroyImmediate(targetPPVolume);
-            DestroyImmediate(renderCamera.gameObject);
-            DestroyImmediate(targetMaterial);
-            DestroyImmediate(textureMesh);
         }
+
+        RenderTexture.active = null;
+        renderCamera.targetTexture = null;
+
+        DestroyImmediate(processingRenderTexture);
+        DestroyImmediate(targetPPLayer);
+        DestroyImmediate(targetPPVolume);
+        DestroyImmediate(renderCamera.gameObject);
+        DestroyImmediate(targetMaterial);
+        DestroyImmediate(textureMesh);
 
         AssetDatabase.Refresh();
 
