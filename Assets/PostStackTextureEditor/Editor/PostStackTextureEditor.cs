@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Collections;
 using System.IO;
 using UnityEngine.Rendering.PostProcessing;
+using System.Collections.Generic;
 
 public class PostProcessTextureBaker : EditorWindow
 {
@@ -26,7 +27,7 @@ public class PostProcessTextureBaker : EditorWindow
     {
         Texture2D,
         // Folder,
-        // VisibleInCamera
+        VisibleByCamera
     };
 
     [MenuItem("Window/Rendering/Post Stack Texture Editor")]
@@ -67,16 +68,47 @@ public class PostProcessTextureBaker : EditorWindow
 
     void BakeTexture()
     {
+        if (!postProcessProfile)
+        {
+            Debug.Log("PostStackTextureEditor: postProcessProfile is missing");
+            return;
+        }
+
         if (targetTextures.Length <= 0)
         {
             Debug.Log("PostStackTextureEditor: no targetTextures");
             return;
         }
 
-        if (!postProcessProfile)
+        if (textureSelectionMode == TextureSelectionMode.VisibleByCamera)
         {
-            Debug.Log("PostStackTextureEditor: postProcessProfile is missing");
-            return;
+            Object[] objectsWithMeshRenderer = GameObject.FindObjectsOfType(typeof(MeshRenderer));
+            List<Texture2D> rendererList = new List<Texture2D>();
+
+            for (int i = 0; i < objectsWithMeshRenderer.Length; i++)
+            {
+                MeshRenderer targetMeshRenderer = (MeshRenderer)objectsWithMeshRenderer[i];
+
+                if (targetMeshRenderer.isVisible)
+                {
+                    Texture2D targetTexture = (Texture2D)targetMeshRenderer.sharedMaterial.GetTexture("_MainTex");
+
+                    if (targetTexture)
+                    {
+                        if (!rendererList.Contains(targetTexture))
+                        {
+                            rendererList.Add(targetTexture);
+                        }
+                    }
+                }
+            }
+
+            targetTextures = new Texture2D[rendererList.Count];
+
+            for (int i = 0; i < rendererList.Count; i++)
+            {
+                targetTextures[i] = rendererList[i];
+            }
         }
 
         renderCamera = new GameObject().AddComponent<Camera>();
@@ -110,7 +142,7 @@ public class PostProcessTextureBaker : EditorWindow
 
             textureMesh.transform.position = renderCamera.transform.position + renderCamera.transform.forward * 50;
             textureMesh.transform.localScale = new Vector3(targetTextures[i].width, targetTextures[i].height, 1);
-            
+
             textureMesh.GetComponent<MeshRenderer>().sharedMaterial.SetTexture("_MainTex", targetTextures[i]);
 
             renderCamera.Render();
